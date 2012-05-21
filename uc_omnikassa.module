@@ -1,0 +1,8 @@
+<?php
+// vi:ft=php:fdm=indent
+
+/**
+ * @file
+ * A payment module for Ubercart that provides Rabobank Omnikassa payment.
+ */
+

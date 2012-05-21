@@ -1,0 +1,38 @@
+<?php
+// vi:ft=php:fdm=indent
+
+/**
+ * @file
+ * Install, update and uninstall functions for the uc_omnikassa module.
+ */
+
+/**
+ * Implements hook_requirements().
+ */
+function uc_omnikassa_requirements($phase) {
+}
+
+/**
+ * Implements hook_schema().
+ */
+function uc_omnikassa_schema() {
+}
+
+/**
+ * Implements hook_install().
+ */
+function uc_omnikassa_install() {
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function uc_omnikassa_uninstall() {
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function uc_omnikassa_update_last_removed() {
+}
+
