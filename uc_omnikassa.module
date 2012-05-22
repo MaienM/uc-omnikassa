@@ -6,3 +6,13 @@
  * A payment module for Ubercart that provides Rabobank Omnikassa payment.
  */
 
+/**
+ * The help function for this module.
+ */
+function uc_omnikassa_help($path, $arg) {
+  switch ($path) {
+    case "admin/help#uc_omnikassa":
+      return '<p>' . t('Provides Rabobank Omnikassa as a payment method for Ubercart') . '</p>';
+      break;
+  }
+}
