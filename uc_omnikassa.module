@@ -16,3 +16,24 @@ function uc_omnikassa_help($path, $arg) {
       break;
   }
 }
+
+/**
+ * Generate a data string from an array.
+ */
+function uc_omnikassa_makedata($array) {
+  $data = '';
+
+  foreach ($array as $key => $value) {
+    $data .= "|$key=$value";
+  }
+
+  return substr($data, 1);
+}
+
+/** 
+ * Generate a seal from a given data string.
+ */
+function uc_omnikassa_makeseal($data, $key) {
+  return hash('sha256', utf8_encode($data . $key));
+}
+
