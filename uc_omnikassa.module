@@ -17,6 +17,330 @@ function uc_omnikassa_help($path, $arg) {
   }
 }
 
+
+/**
+ * Implements hook_uc_payment_method().
+ */
+function uc_omnikassa_uc_payment_method() {
+  // Build the title string.
+  $title = '<img src="" class="uc-omnikassa-cctype" />';
+  $title .= ' ' . t('Rabobank OmniKassa');
+
+  // Available payment types.
+  $title .= '<br /><span id="omnikassa-includes">' . t('Includes:');
+  $payment_types = array('ideal', 'minitix', 'maestro', 'mastercard', 'visa');
+  foreach ($payment_types as $type) {
+    $title .= ' ' . theme('image', array(
+      'path' => drupal_get_path('module', "uc_omnikassa") . "/images/$type.gif",
+      'attributes' => array('class' => array('uc-omnikassa-cctype', "uc-omnikassa-cctype-$type")),
+    ));
+  }
+
+  $methods[] = array(
+    'id' => 'omnikassa',
+    'name' => t('OmniKassa'),
+    'title' => $title,
+    'review' => t('omnikassa'),
+    'desc' => t('Redirect users to submit payments through OmniKassa.'),
+    'callback' => 'uc_payment_method_omnikassa',
+    'redirect' => 'uc_omnikassa_form',
+    'weight' => 1,
+    'checkout' => FALSE,
+    'no_gateway' => TRUE,
+  );
+
+  return $methods;
+}
+
+/**
+ * Handles the OmniKassa Payment method.
+ */
+function uc_payment_method_omnikassa($op, &$order) {
+  switch ($op) {
+    case 'order-view':
+      $txn_id = db_query("SELECT txn_id FROM {uc_payment_omnikassa_ipn} WHERE order_id = :id ORDER BY received ASC", array(':id' => $order->order_id))->fetchField();
+      if (empty($txn_id)) {
+        $txn_id = t('Unknown');
+      }
+
+      $build['#markup'] = t('Transaction ID:<br />@txn_id', array('@txn_id' => $txn_id));
+      return $build;
+
+    case 'settings':
+      $form['uc_omnikassa_merchantid'] = array(
+        '#type' => 'textfield',
+        '#title' => t('OmniKassa merchant id'),
+        '#description' => t('The merchant id for the OmniKassa account you want to receive payments.'),
+        '#default_value' => variable_get('uc_omnikassa_merchantid', '002020000000001'),
+      );
+      $form['uc_omnikassa_key'] = array(
+        '#type' => 'textfield',
+        '#title' => t('Secret key'),
+        '#description' => t('The secret key of your omnikassa account.'),
+        '#default_value' => variable_get('uc_omnikassa_key', '002020000000001_KEY1'),
+      );
+      $form['uc_omnikassa_key_version'] = array(
+        '#type' => 'textfield',
+        '#title' => t('OmniKassa key version'),
+        '#description' => t('??? @TODO'),
+        '#default_value' => variable_get('uc_omnikassa_key_version', '1'),
+      );
+      $form['uc_omnikassa_reference'] = array(
+        '#type' => 'textfield',
+        '#title' => t('OmniKassa reference'),
+        '#description' => t('??? @TODO'),
+        '#default_value' => variable_get('uc_omnikassa_reference', ''),
+      );
+      $form['uc_omnikassa_test'] = array(
+        '#type' => 'checkbox',
+        '#title' => t('OmniKassa test environment enabled.'),
+        '#description' => t('Use the test server, instead of the live server. You can enter rubbish payment data this way, to test if everything works properly. See the technical document (available from the rabobank website) for more details.'),
+        '#default_value' => variable_get('uc_omnikassa_test', true),
+      );
+
+      $form['uc_omnikassa_currency'] = array(
+        '#type' => 'select',
+        '#title' => t('Currency code'),
+        '#description' => t('Transactions can only be processed in one of the listed currencies.'),
+        '#options' => array(
+          '978' => t('Euro'), 
+          '840' => t('American Dollar'),
+          '756' => t('Swiss Franc'),
+          '826' => t('Pound'),
+          '124' => t('Canadian Dollar'),
+          '392' => t('Yen'),
+          '036' => t('Australian Dollar'),
+          '578' => t('Norwegian Crown'),
+          '752' => t('Swedish Crown'),
+          '208' => t('Danish Crown'),
+        ),          
+        '#default_value' => variable_get('uc_omnikassa_currency', '978'),
+      );
+      $form['uc_omnikassa_payment_methods'] = array(
+        '#type' => 'checkboxes',
+        '#title' => t('Payment methods'),
+        '#description' => t('Which payment methods do you want OmniKassa to provide?'),
+        '#options' => array(
+          'IDEAL' => 'iDeal',
+          'MINITIX' => 'MiniTix', 
+          'VISA' => 'Visa',
+          'MASTERCARD' => 'MasterCard',
+          'MAESTRO' => 'Maestro',
+          'INCASSO' => 'Automatische Incasso',
+          'ACCEPTGIRO' => 'Acceptgiro',
+          'REMBOURS' => 'Rembours',
+        ),
+        '#default_value' => variable_get('uc_omnikassa_payment_methods', array('IDEAL', 'MINITIX', 'VISA', 'MASTERCARD', 'MAESTRO')),
+      );
+
+      $form['uc_omnikassa_checkout_button'] = array(
+        '#type' => 'textfield',
+        '#title' => t('Order review submit button text'),
+        '#description' => t('Provide OmniKassa specific text for the submit button on the order review page.'),
+        '#default_value' => variable_get('uc_omnikassa_checkout_button', t('Submit Order')),
+      );
+      $form['uc_omnikassa_cancel_return_url'] = array(
+        '#type' => 'textfield',
+        '#title' => t('Cancel return URL'),
+        '#description' => t('Specify the path customers who cancel their OmniKassa payment will be directed to when they return to your site.'),
+        '#default_value' => variable_get('uc_omnikassa_cancel_return_url', 'cart'),
+        '#size' => 32,
+        '#field_prefix' => url(NULL, array('absolute' => TRUE)) . (variable_get('clean_url', 0) ? '' : '?q='),
+      );
+      $form['uc_omnikassa_submit_method'] = array(
+        '#type' => 'radios',
+        '#title' => t('OmniKassa cart submission method'),
+        '#options' => array(
+          'single' => t('Submit the whole order as a single line item.'),
+          'itemized' => t('Submit an itemized order showing each product and description.'),
+        ),
+        '#default_value' => variable_get('uc_omnikassa_submit_method', 'single'),
+      );
+
+      return $form;
+  }
+}
+
+/**
+ * Returns the form elements for the form.
+ *
+ * This is mostly just copied from the paypal payment method.
+ */
+function uc_omnikassa_form($form, &$form_state, $order) {
+  $shipping = 0;
+  foreach ($order->line_items as $item) {
+    if ($item['type'] == 'shipping') {
+      $shipping += $item['amount'];
+    }
+  }
+
+  $tax = 0;
+  if (module_exists('uc_taxes')) {
+    foreach (uc_taxes_calculate($order) as $tax_item) {
+      $tax += $tax_item->amount;
+    }
+  }
+
+  $address = variable_get('uc_omnikassa_address_selection', 'billing');
+
+  $country = uc_get_country_data(array('country_id' => $order->{$address . '_country'}));
+  if ($country === FALSE) {
+    $country = array(0 => array('country_iso_code_2' => 'US'));
+  }
+
+  $phone = '';
+  for ($i = 0; $i < strlen($order->{$address . '_phone'}); $i++) {
+    if (is_numeric($order->{$address . '_phone'}[$i])) {
+      $phone .= $order->{$address . '_phone'}[$i];
+    }
+  }
+
+  /**
+   * night_phone_a: The area code for U.S. phone numbers, or the country code
+   *                for phone numbers outside the U.S.
+   * night_phone_b: The three-digit prefix for U.S. phone numbers, or the
+   *                entire phone number for phone numbers outside the U.S.,
+   *                excluding country code.
+   * night_phone_c: The four-digit phone number for U.S. phone numbers.
+   *                (Not Used for UK numbers)
+   */
+  if ($country[0]['country_iso_code_2'] == 'US' || $country[0]['country_iso_code_2'] == 'CA') {
+    $phone = substr($phone, -10);
+    $phone_a = substr($phone, 0, 3);
+    $phone_b = substr($phone, 3, 3);
+    $phone_c = substr($phone, 6, 4);
+  }
+  else {
+    $phone_a = $phone_b = $phone_c = '';
+  }
+
+  $data = array(
+    // OmniKassa command variable.
+    'cmd' => '_cart',
+
+    // Set the correct codepage.
+    'charset' => 'utf-8',
+
+    // IPN control notify URL.
+    'notify_url' => url('uc_omnikassa/ipn/' . $order->order_id, array('absolute' => TRUE)),
+
+    // Display information.
+    'cancel_return' => url('uc_omnikassa/cancel', array('absolute' => TRUE)),
+    'no_note' => 1,
+    'no_shipping' => variable_get('uc_omnikassa_no_shipping', 1),
+    'return' => url('uc_omnikassa/complete/' . $order->order_id, array('absolute' => TRUE)),
+    'rm' => 2,
+
+    // Transaction information.
+    'currency_code' => variable_get('uc_omnikassa_currency', 'USD'),
+    'handling_cart' => uc_currency_format($shipping, FALSE, FALSE, '.'),
+    'invoice' => $order->order_id . '-' . uc_cart_get_id(),
+    'tax_cart' => uc_currency_format($tax, FALSE, FALSE, '.'),
+
+    // Shopping cart specific variables.
+    'business' => trim(variable_get('uc_omnikassa_email', '')),
+    'upload' => 1,
+
+    'lc' => variable_get('uc_omnikassa_language', 'US'),
+
+    // Prepopulating forms/address overriding.
+    'address1' => substr($order->{$address . '_street1'}, 0, 100),
+    'address2' => substr($order->{$address . '_street2'}, 0, 100),
+    'city' => substr($order->{$address . '_city'}, 0, 40),
+    'country' => $country[0]['country_iso_code_2'],
+    'email' => $order->primary_email,
+    'first_name' => substr($order->{$address . '_first_name'}, 0, 32),
+    'last_name' => substr($order->{$address . '_last_name'}, 0, 64),
+    'state' => uc_get_zone_code($order->{$address . '_zone'}),
+    'zip' => $order->{$address . '_postal_code'},
+    'night_phone_a' => $phone_a,
+    'night_phone_b' => $phone_b,
+    'night_phone_c' => $phone_c,
+  );
+
+  if (variable_get('uc_omnikassa_address_override', TRUE)) {
+    $data['address_override'] = 1;
+  }
+
+  if (variable_get('uc_omnikassa_submit_method', 'single') == 'itemized') {
+    // List individual items.
+    $i = 0;
+    foreach ($order->products as $item) {
+      $i++;
+      $data['amount_' . $i] = uc_currency_format($item->price, FALSE, FALSE, '.');
+      $data['item_name_' . $i] = $item->title;
+      $data['item_number_' . $i] = $item->model;
+      $data['quantity_' . $i] = $item->qty;
+
+      // OmniKassa will only display the first two...
+      if (!empty($item->data['attributes']) && count($item->data['attributes']) > 0) {
+        $o = 0;
+        foreach ($item->data['attributes'] as $name => $setting) {
+          $data['on' . $o . '_' . $i] = $name;
+          $data['os' . $o . '_' . $i] = implode(', ', (array)$setting);
+          $o++;
+        }
+      }
+    }
+
+    // Apply discounts (negative amount line items). For example, this handles
+    // line items created by uc_coupon.
+    $discount = 0;
+
+    foreach ($order->line_items as $item) {
+      if ($item['amount'] < 0) {
+        // The minus sign is not an error! The discount amount must be positive.
+        $discount -= $item['amount'];
+      }
+    }
+
+    if ($discount != 0) {
+      $data['discount_amount_cart'] = $discount;
+    }
+  }
+  else {
+    // List the whole cart as a single item to account for fees/discounts.
+    $data['amount_1'] = uc_currency_format($order->order_total - $shipping - $tax, FALSE, FALSE, '.');
+    $data['item_name_1'] = t('Order @order_id at !store', array('@order_id' => $order->order_id, '!store' => uc_store_name()));
+    $data['on0_1'] = t('Product count');
+    $data['os0_1'] = count($order->products);
+  }
+
+  // The payment url.
+  $form['#action'] = variable_get('uc_omnikassa_test', true) ? 'http://payment-webinit.simu.omnikassa.rabobank.nl/paymentServlet' : 'http://payment-webinit.omnikassa.rabobank.nl/paymentServlet';
+
+  // Payment data.
+  $omnidata = array(
+    'currencyCode' => variable_get('uc_omnikassa_currency'),
+    'merchantId' => variable_get('uc_omnikassa_merchantid'),
+    'keyVersion' => variable_get('uc_omnikassa_key_version'),
+    'paymentMeanBrandList' => implode(',', variable_get('uc_omnikassa_payment_methods')),
+    'normalReturnUrl' => '',
+    'automaticReturnUrl' => '',
+    'amount' => 10000,
+    'transactionReference' => '',
+  );
+  $omnidata                  = uc_omnikassa_makedata($omnidata);
+  $omniseal                  = uc_omnikassa_makeseal($omnidata);
+  $form['#Data']             = array('#type' => 'hidden', '#value' => $omnidata);
+  $form['#Seal']             = array('#type' => 'hidden', '#value' => $omniseal);
+  $form['#InterfaceVersion'] = array('#type' => 'hidden', '#value' => 'HP_1.0');
+
+  foreach ($data as $name => $value) {
+    if (!empty($value)) {
+      $form[$name] = array('#type' => 'hidden', '#value' => $value);
+    }
+  }
+
+  $form['actions'] = array('#type' => 'actions');
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => variable_get('uc_omnikassa_checkout_button', t('Submit Order')),
+  );
+
+  return $form;
+}
+
 /**
  * Generate a data string from an array.
  */
@@ -33,7 +357,7 @@ function uc_omnikassa_makedata($array) {
 /** 
  * Generate a seal from a given data string.
  */
-function uc_omnikassa_makeseal($data, $key) {
-  return hash('sha256', utf8_encode($data . $key));
+function uc_omnikassa_makeseal($data) {
+  return hash('sha256', utf8_encode($data . variable_get('uc_omnikassa_key', '')));
 }
 
