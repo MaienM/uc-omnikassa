@@ -307,24 +307,26 @@ function uc_omnikassa_form($form, &$form_state, $order) {
   }
 
   // The payment url.
-  $form['#action'] = variable_get('uc_omnikassa_test', true) ? 'http://payment-webinit.simu.omnikassa.rabobank.nl/paymentServlet' : 'http://payment-webinit.omnikassa.rabobank.nl/paymentServlet';
+  $form['#action'] = variable_get('uc_omnikassa_test', true) ? 'https://payment-webinit.simu.omnikassa.rabobank.nl/paymentServlet' : 'https://payment-webinit.omnikassa.rabobank.nl/paymentServlet';
 
   // Payment data.
+  $url = url('cart/echeckout/selected', array('absolute' => true));
   $omnidata = array(
     'currencyCode' => variable_get('uc_omnikassa_currency'),
     'merchantId' => variable_get('uc_omnikassa_merchantid'),
     'keyVersion' => variable_get('uc_omnikassa_key_version'),
-    'paymentMeanBrandList' => implode(',', variable_get('uc_omnikassa_payment_methods')),
-    'normalReturnUrl' => '',
-    'automaticReturnUrl' => '',
-    'amount' => 10000,
-    'transactionReference' => '',
+    'paymentMeanBrandList' => implode(',', array_filter(variable_get('uc_omnikassa_payment_methods'))),
+    'normalReturnUrl' => $url,
+    'automaticResponseUrl' => $url,
+    'amount' => $order->order_total * 100,
+    'transactionReference' => md5(rand()) . $order->order_id,
+    'orderId' => $order->order_id,
   );
-  $omnidata                  = uc_omnikassa_makedata($omnidata);
-  $omniseal                  = uc_omnikassa_makeseal($omnidata);
-  $form['#Data']             = array('#type' => 'hidden', '#value' => $omnidata);
-  $form['#Seal']             = array('#type' => 'hidden', '#value' => $omniseal);
-  $form['#InterfaceVersion'] = array('#type' => 'hidden', '#value' => 'HP_1.0');
+  $omnidata                 = uc_omnikassa_makedata($omnidata);
+  $omniseal                 = uc_omnikassa_makeseal($omnidata);
+  $form['Data']             = array('#type' => 'hidden', '#value' => $omnidata);
+  $form['Seal']             = array('#type' => 'hidden', '#value' => $omniseal);
+  $form['InterfaceVersion'] = array('#type' => 'hidden', '#value' => 'HP_1.0');
 
   foreach ($data as $name => $value) {
     if (!empty($value)) {
