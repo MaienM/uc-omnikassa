@@ -61,7 +61,7 @@ function uc_omnikassa_uc_payment_method() {
     'id' => 'omnikassa',
     'name' => t('OmniKassa'),
     'title' => $title,
-    'review' => t('omnikassa'),
+    'review' => t('OmniKassa'),
     'desc' => t('Redirect users to submit payments through OmniKassa.'),
     'callback' => 'uc_payment_method_omnikassa',
     'redirect' => 'uc_omnikassa_form',
@@ -78,14 +78,14 @@ function uc_omnikassa_uc_payment_method() {
  */
 function uc_payment_method_omnikassa($op, &$order) {
   switch ($op) {
-    case 'order-view':
-      $txn_id = db_query("SELECT txn_id FROM {uc_payment_omnikassa_ipn} WHERE order_id = :id ORDER BY received ASC", array(':id' => $order->order_id))->fetchField();
+    /*case 'order-view':
+      $txn_id = db_query("SELECT txn_id FROM {uc_payment_omnikassa} WHERE order_id = :id ORDER BY received ASC", array(':id' => $order->order_id))->fetchField();
       if (empty($txn_id)) {
         $txn_id = t('Unknown');
       }
 
       $build['#markup'] = t('Transaction ID:<br />@txn_id', array('@txn_id' => $txn_id));
-      return $build;
+      return $build;*/
 
     case 'settings':
       $form['uc_omnikassa_merchantid'] = array(
@@ -103,7 +103,7 @@ function uc_payment_method_omnikassa($op, &$order) {
       $form['uc_omnikassa_key_version'] = array(
         '#type' => 'textfield',
         '#title' => t('OmniKassa key version'),
-        '#description' => t('??? @TODO'),
+        '#description' => t('The key version of your secret key.'),
         '#default_value' => variable_get('uc_omnikassa_key_version', '1'),
       );
       $form['uc_omnikassa_reference'] = array(
@@ -241,9 +241,6 @@ function uc_omnikassa_form($form, &$form_state, $order) {
 
     // Set the correct codepage.
     'charset' => 'utf-8',
-
-    // IPN control notify URL.
-    'notify_url' => url('uc_omnikassa/ipn/' . $order->order_id, array('absolute' => TRUE)),
 
     // Display information.
     'cancel_return' => url('uc_omnikassa/cancel', array('absolute' => TRUE)),
