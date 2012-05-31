@@ -7,32 +7,124 @@
  */
 
 /**
- * Implements hook_requirements().
- */
-function uc_omnikassa_requirements($phase) {
-}
-
-/**
  * Implements hook_schema().
  */
 function uc_omnikassa_schema() {
+  $schema = array();
+
+  $schema['uc_payment_omnikassa'] = array(
+    'description' => 'Logs OmniKassa Payments.',
+    'fields' => array(
+      'order_id' => array(
+        'description' => 'The order ID.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'reference' => array(
+        'description' => 'The transaction ID from OmniKassa.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'type' => array(
+        'description' => 'The transaction type from OmniKassa.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'brand' => array(
+        'description' => 'The transaction brand from OmniKassa.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'amount' => array(
+        'description' => 'The payment amount from OmniKassa.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'ident' => array(
+        'description' => 'The masked account number/identifier from OmniKassa.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'response' => array(
+        'description' => 'The response code from OmniKassa.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'processed' => array(
+        'description' => 'The timestamp of when OmniKassa processed the payment.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'received' => array(
+        'description' => 'The timestamp of when we received the payment notification.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'indexes' => array(
+      'order_id' => array('order_id'),
+    ),
+    'foreign keys' => array(
+      'order_id' => array('uc_orders' => 'order_id'),
+    ),
+  );
+
+  return $schema;
 }
 
 /**
  * Implements hook_install().
  */
 function uc_omnikassa_install() {
+  $t = get_t();
+
+  db_merge('uc_order_statuses')
+    ->key(array('order_status_id' => 'omnikassa_pending'))
+    ->insertFields(array(
+      'order_status_id' => 'omnikassa_pending',
+      'title' => $t('OmniKassa pending'),
+      'state' => 'payment_received',
+      'weight' => 7,
+      'locked' => 1,
+    ))
+    ->updateFields(array(
+      'state' => 'payment_received',
+      'locked' => 1,
+    ))
+    ->execute();
 }
 
 /**
  * Implements hook_uninstall().
  */
 function uc_omnikassa_uninstall() {
-}
+  db_update('uc_order_statuses')
+    ->fields(array(
+      'locked' => 0,
+    ))
+    ->condition('order_status_id', 'omnikassa_pending')
+    ->execute();
 
-/**
- * Implements hook_update_last_removed().
- */
-function uc_omnikassa_update_last_removed() {
+  db_delete('variable')
+    ->condition('name', 'uc_omnikassa_%', 'LIKE')
+    ->execute();
 }
 
