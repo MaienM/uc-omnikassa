@@ -100,6 +100,16 @@ function uc_omnikassa_complete() {
       drupal_goto('cart');
       break;
 
+    case '02':
+    case '05':
+    case '14':
+    case '34':
+    case '75':
+      uc_order_comment_save($order_id, 0, t('The payment of order @order_id has been refused: @error_code.', array('@order_id' => $order_id, '@error_code' => $data['responseCode'])));
+      drupal_set_message(t('Your payment has been canceled. Please try again later.'), 'error');
+      drupal_goto('cart');
+      break;
+
     case '03':
     case '12':
     case '24':
@@ -111,18 +121,9 @@ function uc_omnikassa_complete() {
     case '94':
     case '97':
     case '99':
+    default:
       uc_order_comment_save($order_id, 0, t('An technical error occured while processing the payment of order @order_id: @error_code.', array('@order_id' => $order_id, '@error_code' => $data['responseCode'])));
       drupal_set_message(t('A technical error has occured while processing your payment. Please try again later.'), 'error');
-      drupal_goto('cart');
-      break;
-
-    case '02':
-    case '05':
-    case '14':
-    case '34':
-    case '75':
-      uc_order_comment_save($order_id, 0, t('The payment of order @order_id has been refused: @error_code.', array('@order_id' => $order_id, '@error_code' => $data['responseCode'])));
-      drupal_set_message(t('Your payment has been canceled. Please try again later.'), 'error');
       drupal_goto('cart');
       break;
   }
