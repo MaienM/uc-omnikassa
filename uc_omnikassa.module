@@ -78,14 +78,29 @@ function uc_omnikassa_uc_payment_method() {
  */
 function uc_payment_method_omnikassa($op, &$order) {
   switch ($op) {
-    /*case 'order-view':
-      $txn_id = db_query("SELECT txn_id FROM {uc_payment_omnikassa} WHERE order_id = :id ORDER BY received ASC", array(':id' => $order->order_id))->fetchField();
-      if (empty($txn_id)) {
-        $txn_id = t('Unknown');
+    case 'order-view':
+      $node = db_query("SELECT reference, brand, ident FROM {uc_payment_omnikassa} WHERE order_id = :id ORDER BY received ASC", array(':id' => $order->order_id))->fetchAssoc();
+
+      // The transaction reference and brand default to "Unknown" if... well, unknown.
+      if (empty($node['reference'])) {
+        $node['reference'] = t('Unknown');
+      }
+      if (empty($node['brand'])) {
+        $node['brand'] = t('Unknown');
       }
 
-      $build['#markup'] = t('Transaction ID:<br />@txn_id', array('@txn_id' => $txn_id));
-      return $build;*/
+      // Add the brand (iDeal, VISA, etc).
+      $build['#markup'] = t('Paid with @brand', array('@brand' => $node['brand']));
+
+      // If applicable, add the masked account number.
+      if (!empty($node['ident'])) {
+        $build['#markup'] .= '<br />' . t('Account number: @ident', array('@ident' => $node['ident']));
+      }
+
+      // Add the transaction reference.
+      $build['#markup'] .= '<br />' . t('Transaction ID: @reference', array('@reference' => $node['reference']));
+
+      return $build;
 
     case 'settings':
       $form['uc_omnikassa_merchantid'] = array(
@@ -184,161 +199,24 @@ function uc_payment_method_omnikassa($op, &$order) {
 
 /**
  * Returns the form elements for the form.
- *
- * This is mostly just copied from the paypal payment method.
  */
 function uc_omnikassa_form($form, &$form_state, $order) {
-  $shipping = 0;
-  foreach ($order->line_items as $item) {
-    if ($item['type'] == 'shipping') {
-      $shipping += $item['amount'];
-    }
-  }
-
-  $tax = 0;
-  if (module_exists('uc_taxes')) {
-    foreach (uc_taxes_calculate($order) as $tax_item) {
-      $tax += $tax_item->amount;
-    }
-  }
-
-  $address = variable_get('uc_omnikassa_address_selection', 'billing');
-
-  $country = uc_get_country_data(array('country_id' => $order->{$address . '_country'}));
-  if ($country === FALSE) {
-    $country = array(0 => array('country_iso_code_2' => 'US'));
-  }
-
-  $phone = '';
-  for ($i = 0; $i < strlen($order->{$address . '_phone'}); $i++) {
-    if (is_numeric($order->{$address . '_phone'}[$i])) {
-      $phone .= $order->{$address . '_phone'}[$i];
-    }
-  }
-
-  /**
-   * night_phone_a: The area code for U.S. phone numbers, or the country code
-   *                for phone numbers outside the U.S.
-   * night_phone_b: The three-digit prefix for U.S. phone numbers, or the
-   *                entire phone number for phone numbers outside the U.S.,
-   *                excluding country code.
-   * night_phone_c: The four-digit phone number for U.S. phone numbers.
-   *                (Not Used for UK numbers)
-   */
-  if ($country[0]['country_iso_code_2'] == 'US' || $country[0]['country_iso_code_2'] == 'CA') {
-    $phone = substr($phone, -10);
-    $phone_a = substr($phone, 0, 3);
-    $phone_b = substr($phone, 3, 3);
-    $phone_c = substr($phone, 6, 4);
-  }
-  else {
-    $phone_a = $phone_b = $phone_c = '';
-  }
-
-  $data = array(
-    // OmniKassa command variable.
-    'cmd' => '_cart',
-
-    // Set the correct codepage.
-    'charset' => 'utf-8',
-
-    // Display information.
-    'cancel_return' => url('uc_omnikassa/cancel', array('absolute' => TRUE)),
-    'no_note' => 1,
-    'no_shipping' => variable_get('uc_omnikassa_no_shipping', 1),
-    'return' => url('uc_omnikassa/complete/' . $order->order_id, array('absolute' => TRUE)),
-    'rm' => 2,
-
-    // Transaction information.
-    'currency_code' => variable_get('uc_omnikassa_currency', 'USD'),
-    'handling_cart' => uc_currency_format($shipping, FALSE, FALSE, '.'),
-    'invoice' => $order->order_id . '-' . uc_cart_get_id(),
-    'tax_cart' => uc_currency_format($tax, FALSE, FALSE, '.'),
-
-    // Shopping cart specific variables.
-    'business' => trim(variable_get('uc_omnikassa_email', '')),
-    'upload' => 1,
-
-    'lc' => variable_get('uc_omnikassa_language', 'US'),
-
-    // Prepopulating forms/address overriding.
-    'address1' => substr($order->{$address . '_street1'}, 0, 100),
-    'address2' => substr($order->{$address . '_street2'}, 0, 100),
-    'city' => substr($order->{$address . '_city'}, 0, 40),
-    'country' => $country[0]['country_iso_code_2'],
-    'email' => $order->primary_email,
-    'first_name' => substr($order->{$address . '_first_name'}, 0, 32),
-    'last_name' => substr($order->{$address . '_last_name'}, 0, 64),
-    'state' => uc_get_zone_code($order->{$address . '_zone'}),
-    'zip' => $order->{$address . '_postal_code'},
-    'night_phone_a' => $phone_a,
-    'night_phone_b' => $phone_b,
-    'night_phone_c' => $phone_c,
-  );
-
-  if (variable_get('uc_omnikassa_address_override', TRUE)) {
-    $data['address_override'] = 1;
-  }
-
-  if (variable_get('uc_omnikassa_submit_method', 'single') == 'itemized') {
-    // List individual items.
-    $i = 0;
-    foreach ($order->products as $item) {
-      $i++;
-      $data['amount_' . $i] = uc_currency_format($item->price, FALSE, FALSE, '.');
-      $data['item_name_' . $i] = $item->title;
-      $data['item_number_' . $i] = $item->model;
-      $data['quantity_' . $i] = $item->qty;
-
-      // OmniKassa will only display the first two...
-      if (!empty($item->data['attributes']) && count($item->data['attributes']) > 0) {
-        $o = 0;
-        foreach ($item->data['attributes'] as $name => $setting) {
-          $data['on' . $o . '_' . $i] = $name;
-          $data['os' . $o . '_' . $i] = implode(', ', (array)$setting);
-          $o++;
-        }
-      }
-    }
-
-    // Apply discounts (negative amount line items). For example, this handles
-    // line items created by uc_coupon.
-    $discount = 0;
-
-    foreach ($order->line_items as $item) {
-      if ($item['amount'] < 0) {
-        // The minus sign is not an error! The discount amount must be positive.
-        $discount -= $item['amount'];
-      }
-    }
-
-    if ($discount != 0) {
-      $data['discount_amount_cart'] = $discount;
-    }
-  }
-  else {
-    // List the whole cart as a single item to account for fees/discounts.
-    $data['amount_1'] = uc_currency_format($order->order_total - $shipping - $tax, FALSE, FALSE, '.');
-    $data['item_name_1'] = t('Order @order_id at !store', array('@order_id' => $order->order_id, '!store' => uc_store_name()));
-    $data['on0_1'] = t('Product count');
-    $data['os0_1'] = count($order->products);
-  }
-
   // The payment url.
   $form['#action'] = variable_get('uc_omnikassa_test', TRUE) ? 'https://payment-webinit.simu.omnikassa.rabobank.nl/paymentServlet' : 'https://payment-webinit.omnikassa.rabobank.nl/paymentServlet';
 
   // Payment data.
   $url = url('uc_omnikassa/complete', array('absolute' => TRUE));
   $omnidata = array(
-    'currencyCode' => variable_get('uc_omnikassa_currency'),
-    'merchantId' => variable_get('uc_omnikassa_merchantid'),
-    'keyVersion' => variable_get('uc_omnikassa_key_version'),
+    'currencyCode'         => variable_get('uc_omnikassa_currency'),
+    'merchantId'           => variable_get('uc_omnikassa_merchantid'),
+    'keyVersion'           => variable_get('uc_omnikassa_key_version'),
     'paymentMeanBrandList' => implode(',', array_filter(variable_get('uc_omnikassa_payment_methods'))),
-    'normalReturnUrl' => $url,
+    'normalReturnUrl'      => $url,
     'automaticResponseUrl' => $url,
-    'amount' => $order->order_total * 100,
-    'transactionReference' => md5(rand()) . $order->order_id,
-    'orderId' => $order->order_id,
+    //'expirationdate'     =>
+    'amount'               => (int)($order->order_total * 100),
+    'transactionReference' => substr(md5(rand()), 0, 8) . $order->order_id,
+    'orderId'              => $order->order_id,
   );
   $omnidata                 = uc_omnikassa_makedata($omnidata);
   $omniseal                 = uc_omnikassa_makeseal($omnidata);
