@@ -12,7 +12,7 @@ function uc_omnikassa_complete() {
   function error($message)
   {
     drupal_set_message(t("An error has occured. Please try again."), 'error');
-    watchdog('uc_omnikassa', "Invalid OmniKassa payment received: $message", WATCHDOG_ERROR);
+    watchdog('uc_omnikassa', t('Invalid OmniKassa payment received: @message', array('@message' => $message)), WATCHDOG_ERROR);
     drupal_goto('cart');
   }
 
@@ -48,16 +48,39 @@ function uc_omnikassa_complete() {
   }
 
   // Check the order data against the payment data.
-  if ($order->order_total * 100 != $data['amount']) {
-    return error('amount of the payment does not match the amount of the order');
+  if ((int)($order->order_total * 100) != (int)($data['amount'])) {
+    return error("amount of the payment does not match the amount of the order: {$order->order_total}, {$data['amount']}");
   }
+
+  // Check if the payment is a duplicate.
+  $duplicate = (bool) db_query_range('SELECT 1 FROM {uc_payment_omnikassa} WHERE reference = :reference', 0, 1, array(':reference' => $data['transactionReference']))->fetchField();
+  if ($duplicate) {
+    watchdog('uc_omnikassa', 'OmniKassa transaction @reference has been processed before.', array('@reference' => $data['transactionReference']), WATCHDOG_NOTICE);
+    return;
+  }
+
+  // Insert the payment into the database.
+  db_insert('uc_payment_omnikassa')
+    ->fields(array(
+      'order_id'       => $order_id,
+      'type'           => $data['paymentMeanType'],
+      'brand'          => $data['paymentMeanBrand'],
+      'ident'          => isset($data['maskedPan']) ? $data['maskedPan'] : '',
+      'reference'      => $data['transactionReference'],
+      'response'       => $data['responseCode'],
+      'amount'         => $data['amount'],
+      'processed'      => date_create_from_format('Y-m-d\TH:i:sP', $data['transactionDateTime'])->getTimeStamp(),
+      'received'       => REQUEST_TIME,
+    ))
+    ->execute();
 
   // Check the payment status.
   switch ($data['responseCode']) {
     // Succes.
     case '00':
+      uc_order_comment_save($order_id, 0, t('Payment of @amount @currency received through OmniKassa.', array('@amount' => uc_currency_format($order->order_total, FALSE), '@currency' => $order->currency)), 'order');
+      uc_order_update_status($order_id, 'payment_received');
       uc_cart_complete_sale($order);
-      uc_order_comment_save($order_id, 0, t('Payment of @amount @currency submitted through OmniKassa.', array('@amount' => uc_currency_format($order->order_total, FALSE), '@currency' => $order->currency)), 'order', 'payment_received');
 
       // This lets us know it's a legitimate access of the complete page.
       $_SESSION['uc_checkout'][$_SESSION['cart_order']]['do_complete'] = TRUE;
@@ -66,7 +89,7 @@ function uc_omnikassa_complete() {
 
     // Payment pending. How to handle this gracefully?
     case '60':
-      uc_order_update_status($order_id, 'payment_pending');
+      uc_order_update_status($order_id, 'pending');
       drupal_set_message(t('Your payment is pending.'), 'info');
       drupal_goto('cart');
       break;
@@ -99,13 +122,8 @@ function uc_omnikassa_complete() {
     case '34':
     case '75':
       uc_order_comment_save($order_id, 0, t('The payment of order @order_id has been refused: @error_code.', array('@order_id' => $order_id, '@error_code' => $data['responseCode'])));
-      drupal_set_message(t('Your payment had been refused. Please try again later.'), 'error');
+      drupal_set_message(t('Your payment has been canceled. Please try again later.'), 'error');
       drupal_goto('cart');
       break;
   }
-    
-  //echo "<pre>";
-  //print_r($data);
-  //print_r($order);
-  //echo "</pre>";
 }
