@@ -74,7 +74,7 @@ function uc_omnikassa_uc_payment_method() {
 }
 
 /**
- * The settings page for this payment method.
+ * The settings page and order overview hook for this payment method.
  */
 function uc_payment_method_omnikassa($op, &$order) {
   switch ($op) {
@@ -121,16 +121,10 @@ function uc_payment_method_omnikassa($op, &$order) {
         '#description' => t('The key version of your secret key.'),
         '#default_value' => variable_get('uc_omnikassa_key_version', '1'),
       );
-      $form['uc_omnikassa_reference'] = array(
-        '#type' => 'textfield',
-        '#title' => t('OmniKassa reference'),
-        '#description' => t('??? @TODO'),
-        '#default_value' => variable_get('uc_omnikassa_reference', ''),
-      );
       $form['uc_omnikassa_test'] = array(
         '#type' => 'checkbox',
         '#title' => t('OmniKassa test environment enabled.'),
-        '#description' => t('Use the test server, instead of the live server. You can enter rubbish payment data this way, to test if everything works properly. See the technical document (available from the rabobank website) for more details.'),
+        '#description' => t('Use the test server, instead of the live server. This can be used to test various situations (failed payments, etc) to see how the module handles this. See the technical document (available from the rabobank website) for more details.'),
         '#default_value' => variable_get('uc_omnikassa_test', TRUE),
       );
 
@@ -174,23 +168,6 @@ function uc_payment_method_omnikassa($op, &$order) {
         '#title' => t('Order review submit button text'),
         '#description' => t('Provide OmniKassa specific text for the submit button on the order review page.'),
         '#default_value' => variable_get('uc_omnikassa_checkout_button', t('Submit Order')),
-      );
-      $form['uc_omnikassa_cancel_return_url'] = array(
-        '#type' => 'textfield',
-        '#title' => t('Cancel return URL'),
-        '#description' => t('Specify the path customers who cancel their OmniKassa payment will be directed to when they return to your site.'),
-        '#default_value' => variable_get('uc_omnikassa_cancel_return_url', 'cart'),
-        '#size' => 32,
-        '#field_prefix' => url(NULL, array('absolute' => TRUE)) . (variable_get('clean_url', 0) ? '' : '?q='),
-      );
-      $form['uc_omnikassa_submit_method'] = array(
-        '#type' => 'radios',
-        '#title' => t('OmniKassa cart submission method'),
-        '#options' => array(
-          'single' => t('Submit the whole order as a single line item.'),
-          'itemized' => t('Submit an itemized order showing each product and description.'),
-        ),
-        '#default_value' => variable_get('uc_omnikassa_submit_method', 'single'),
       );
 
       return $form;
