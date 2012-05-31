@@ -14,6 +14,22 @@ function uc_omnikassa_makedata($array) {
   return substr($data, 1);
 }
 
+/**
+ * Generate an array from a data string. 
+ *
+ * The inverse of uc_omnikassa_makedata.
+ */
+function uc_omnikassa_extractdata($data) {
+  $arr = array();
+
+  foreach (explode('|', $data) as $d) {
+    $d = explode('=', $d, 2);
+    $arr[$d[0]] = $d[1];
+  }
+
+  return $arr;
+}
+
 /** 
  * Generate a seal from a given data string.
  */
