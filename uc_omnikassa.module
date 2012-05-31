@@ -162,6 +162,15 @@ function uc_payment_method_omnikassa($op, &$order) {
         ),
         '#default_value' => variable_get('uc_omnikassa_payment_methods', array('IDEAL', 'MINITIX', 'VISA', 'MASTERCARD', 'MAESTRO')),
       );
+      $form['uc_omnikassa_timeout'] = array(
+        '#type' => 'textfield',
+        '#title' => t('Payment timeout'),
+        '#description' => t('After how many minutes do you want the payment to time out?'),
+        '#precision' => 1,
+        '#minimum' => 1,
+        '#maximum' => 60,
+        '#default_value' => variable_get('uc_omnikassa_timeout', '10'),
+      );
 
       $form['uc_omnikassa_checkout_button'] = array(
         '#type' => 'textfield',
@@ -190,7 +199,7 @@ function uc_omnikassa_form($form, &$form_state, $order) {
     'paymentMeanBrandList' => implode(',', array_filter(variable_get('uc_omnikassa_payment_methods'))),
     'normalReturnUrl'      => $url,
     'automaticResponseUrl' => $url,
-    //'expirationdate'     =>
+    'expirationdate'       => date('Y-m-d\TH:i:sP', time() + 60 * variable_get('uc_omnikassa_timeout')),
     'amount'               => (int)($order->order_total * 100),
     'transactionReference' => substr(md5(rand()), 0, 8) . $order->order_id,
     'orderId'              => $order->order_id,
