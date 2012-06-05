@@ -79,7 +79,7 @@ function uc_omnikassa_uc_payment_method() {
 function uc_payment_method_omnikassa($op, &$order) {
   switch ($op) {
     case 'order-view':
-      $node = db_query("SELECT reference, brand, ident FROM {uc_payment_omnikassa} WHERE order_id = :id ORDER BY received ASC", array(':id' => $order->order_id))->fetchAssoc();
+      $node = db_query("SELECT reference, brand, ident FROM {uc_payment_omnikassa} WHERE order_id = :id ORDER BY received DESC", array(':id' => $order->order_id))->fetchAssoc();
 
       // The transaction reference and brand default to "Unknown" if... well, unknown.
       if (empty($node['reference'])) {
@@ -210,7 +210,7 @@ function uc_omnikassa_form($form, &$form_state, $order) {
     'paymentMeanBrandList' => implode(',', array_filter(variable_get('uc_omnikassa_payment_methods'))),
     'normalReturnUrl'      => $url,
     'automaticResponseUrl' => $url,
-    'expirationDate'       => date(DateTime::ISO8601, time() + 60 * variable_get('uc_omnikassa_timeout')),
+    //'expirationDate'       => date(DateTime::ISO8601, time() + 60 * variable_get('uc_omnikassa_timeout')),
     'amount'               => (int)($order->order_total * 100),
     'transactionReference' => substr(md5(rand()), 0, 8) . $order->order_id,
     'orderId'              => $order->order_id,
