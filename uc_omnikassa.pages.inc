@@ -11,7 +11,7 @@ function uc_omnikassa_complete() {
   // occured (without stating what), and log the details.
   function error($message)
   {
-    drupal_set_message(t("An error has occured. Please try again."), 'error');
+    drupal_set_message(t('An error has occured. Please try again.'), 'error');
     watchdog('uc_omnikassa', t('Invalid OmniKassa payment received: @message', array('@message' => $message)), WATCHDOG_ERROR);
     drupal_goto('cart');
   }
@@ -69,7 +69,7 @@ function uc_omnikassa_complete() {
       'reference'      => $data['transactionReference'],
       'response'       => $data['responseCode'],
       'amount'         => $data['amount'],
-      'processed'      => date_create_from_format('Y-m-d\TH:i:sP', $data['transactionDateTime'])->getTimeStamp(),
+      'processed'      => date_create_from_format(DateTime::ISO8601, $data['transactionDateTime'])->getTimeStamp(),
       'received'       => REQUEST_TIME,
     ))
     ->execute();
@@ -79,6 +79,7 @@ function uc_omnikassa_complete() {
     // Succes.
     case '00':
       uc_order_comment_save($order_id, 0, t('Payment of @amount @currency received through OmniKassa.', array('@amount' => uc_currency_format($order->order_total, FALSE), '@currency' => $order->currency)), 'order');
+      uc_order_comment_save($order_id, 0, t('Payment of @amount @currency received through OmniKassa.', array('@amount' => uc_currency_format($order->order_total, FALSE), '@currency' => $order->currency)));
       uc_order_update_status($order_id, 'payment_received');
       uc_cart_complete_sale($order);
 
@@ -105,7 +106,7 @@ function uc_omnikassa_complete() {
     case '14':
     case '34':
     case '75':
-      uc_order_comment_save($order_id, 0, t('The payment of order @order_id has been refused: @error_code.', array('@order_id' => $order_id, '@error_code' => $data['responseCode'])));
+      uc_order_comment_save($order_id, 0, t('The payment has been refused: @error_code.', array('@order_id' => $order_id, '@error_code' => $data['responseCode'])));
       drupal_set_message(t('Your payment has been canceled. Please try again later.'), 'error');
       drupal_goto('cart');
       break;
@@ -122,7 +123,7 @@ function uc_omnikassa_complete() {
     case '97':
     case '99':
     default:
-      uc_order_comment_save($order_id, 0, t('An technical error occured while processing the payment of order @order_id: @error_code.', array('@order_id' => $order_id, '@error_code' => $data['responseCode'])));
+      uc_order_comment_save($order_id, 0, t('A technical error occured while processing the payment: @error_code.', array('@order_id' => $order_id, '@error_code' => $data['responseCode'])));
       drupal_set_message(t('A technical error has occured while processing your payment. Please try again later.'), 'error');
       drupal_goto('cart');
       break;

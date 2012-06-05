@@ -112,7 +112,7 @@ function uc_payment_method_omnikassa($op, &$order) {
       $form['uc_omnikassa_key'] = array(
         '#type' => 'textfield',
         '#title' => t('Secret key'),
-        '#description' => t('The secret key of your omnikassa account.'),
+        '#description' => t('The secret key of your OmniKassa account.'),
         '#default_value' => variable_get('uc_omnikassa_key', '002020000000001_KEY1'),
       );
       $form['uc_omnikassa_key_version'] = array(
@@ -199,7 +199,7 @@ function uc_omnikassa_form($form, &$form_state, $order) {
     'paymentMeanBrandList' => implode(',', array_filter(variable_get('uc_omnikassa_payment_methods'))),
     'normalReturnUrl'      => $url,
     'automaticResponseUrl' => $url,
-    'expirationdate'       => date('Y-m-d\TH:i:sP', time() + 60 * variable_get('uc_omnikassa_timeout')),
+    'expirationdate'       => date(DateTime::ISO8601, time() + 60 * variable_get('uc_omnikassa_timeout')),
     'amount'               => (int)($order->order_total * 100),
     'transactionReference' => substr(md5(rand()), 0, 8) . $order->order_id,
     'orderId'              => $order->order_id,
