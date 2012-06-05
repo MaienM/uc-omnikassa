@@ -90,7 +90,7 @@ function uc_omnikassa_complete() {
 
     // Payment pending. How to handle this gracefully?
     case '60':
-      uc_order_update_status($order_id, 'pending');
+      uc_order_update_status($order_id, 'omnikassa_pending');
       drupal_set_message(t('Your payment is pending.'), 'info');
       drupal_goto('cart');
       break;

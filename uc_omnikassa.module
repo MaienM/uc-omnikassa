@@ -212,7 +212,7 @@ function uc_omnikassa_form($form, &$form_state, $order) {
     'automaticResponseUrl' => $url,
     //'expirationDate'       => date(DateTime::ISO8601, time() + 60 * variable_get('uc_omnikassa_timeout')),
     'amount'               => (int)($order->order_total * 100),
-    'transactionReference' => substr(md5(rand()), 0, 6) . sprintf('%04d', $order->order_id),
+    'transactionReference' => sprintf('%06d', $order->order_id) . substr(md5(rand()), 0, 6),
     'orderId'              => $order->order_id,
   );
   $omnidata                 = uc_omnikassa_makedata($omnidata);
