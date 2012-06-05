@@ -34,6 +34,6 @@ function uc_omnikassa_extractdata($data) {
  * Generate a seal from a given data string.
  */
 function uc_omnikassa_makeseal($data) {
-  return hash('sha256', utf8_encode($data . variable_get('uc_omnikassa_key', '')));
+  return hash('sha256', utf8_encode($data . (variable_get('uc_omnikassa_test', TRUE) ? '002020000000001_KEY1' : variable_get('uc_omnikassa_key', ''))));
 }
 

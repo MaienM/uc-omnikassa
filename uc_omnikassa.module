@@ -103,29 +103,40 @@ function uc_payment_method_omnikassa($op, &$order) {
       return $build;
 
     case 'settings':
-      $form['uc_omnikassa_merchantid'] = array(
-        '#type' => 'textfield',
-        '#title' => t('OmniKassa merchant id'),
-        '#description' => t('The merchant id for the OmniKassa account you want to receive payments.'),
-        '#default_value' => variable_get('uc_omnikassa_merchantid', '002020000000001'),
-      );
-      $form['uc_omnikassa_key'] = array(
-        '#type' => 'textfield',
-        '#title' => t('Secret key'),
-        '#description' => t('The secret key of your OmniKassa account.'),
-        '#default_value' => variable_get('uc_omnikassa_key', '002020000000001_KEY1'),
-      );
-      $form['uc_omnikassa_key_version'] = array(
-        '#type' => 'textfield',
-        '#title' => t('OmniKassa key version'),
-        '#description' => t('The key version of your secret key.'),
-        '#default_value' => variable_get('uc_omnikassa_key_version', '1'),
-      );
+      // The test mode checkbox.
       $form['uc_omnikassa_test'] = array(
         '#type' => 'checkbox',
         '#title' => t('OmniKassa test environment enabled.'),
         '#description' => t('Use the test server, instead of the live server. This can be used to test various situations (failed payments, etc) to see how the module handles this. See the technical document (available from the rabobank website) for more details.'),
         '#default_value' => variable_get('uc_omnikassa_test', TRUE),
+      );
+
+      // The merchant details. Only shown when NOT in test mode.
+      $form['uc_merchant_details'] = array(
+        '#type' => 'container',
+        '#states' => array(
+          'invisible' => array(
+            ':input[name="uc_omnikassa_test"]' => array('checked' => TRUE),
+          ),
+        ),
+      );
+      $form['uc_merchant_details']['uc_omnikassa_merchantid'] = array(
+        '#type' => 'textfield',
+        '#title' => t('OmniKassa merchant id'),
+        '#description' => t('The merchant id for the OmniKassa account you want to receive payments.'),
+        '#default_value' => variable_get('uc_omnikassa_merchantid', ''),
+      );
+      $form['uc_merchant_details']['uc_omnikassa_key'] = array(
+        '#type' => 'textfield',
+        '#title' => t('Secret key'),
+        '#description' => t('The secret key of your OmniKassa account.'),
+        '#default_value' => variable_get('uc_omnikassa_key', ''),
+      );
+      $form['uc_merchant_details']['uc_omnikassa_key_version'] = array(
+        '#type' => 'textfield',
+        '#title' => t('OmniKassa key version'),
+        '#description' => t('The key version of your secret key.'),
+        '#default_value' => variable_get('uc_omnikassa_key_version', ''),
       );
 
       $form['uc_omnikassa_currency'] = array(
@@ -194,12 +205,12 @@ function uc_omnikassa_form($form, &$form_state, $order) {
   $url = url('uc_omnikassa/complete', array('absolute' => TRUE));
   $omnidata = array(
     'currencyCode'         => variable_get('uc_omnikassa_currency'),
-    'merchantId'           => variable_get('uc_omnikassa_merchantid'),
-    'keyVersion'           => variable_get('uc_omnikassa_key_version'),
+    'merchantId'           => variable_get('uc_omnikassa_test', TRUE) ? '002020000000001' : variable_get('uc_omnikassa_merchantid'),
+    'keyVersion'           => variable_get('uc_omnikassa_test', TRUE) ? '1' : variable_get('uc_omnikassa_key_version'),
     'paymentMeanBrandList' => implode(',', array_filter(variable_get('uc_omnikassa_payment_methods'))),
     'normalReturnUrl'      => $url,
     'automaticResponseUrl' => $url,
-    'expirationdate'       => date(DateTime::ISO8601, time() + 60 * variable_get('uc_omnikassa_timeout')),
+    'expirationDate'       => date(DateTime::ISO8601, time() + 60 * variable_get('uc_omnikassa_timeout')),
     'amount'               => (int)($order->order_total * 100),
     'transactionReference' => substr(md5(rand()), 0, 8) . $order->order_id,
     'orderId'              => $order->order_id,
