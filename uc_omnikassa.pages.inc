@@ -9,7 +9,7 @@ require_once 'uc_omnikassa.helper.inc';
 function uc_omnikassa_complete() {
   // Create a link to an transaction.
   function _link($data) {
-    return l(t('Details'), "admin/store/orders/{$data['orderId']}/transaction/{$data['transactionReference']}");
+    return l(t('Details'), "admin/store/orders/{$data['orderId']}/transactions/{$data['transactionReference']}");
   }
 
   // When an critical/security error occurs, we simply state that an error 
@@ -106,10 +106,10 @@ function uc_omnikassa_complete() {
   switch ($data['responseCode']) {
     // Succes.
     case '00':
+      uc_payment_enter($order_id, 'omnikassa', $data['amount'] / 100, $order->uid, NULL, _link($data), REQUEST_TIME);
+      uc_cart_complete_sale($order);
       uc_order_comment_save($order_id, 0, t('Payment of @amount @currency received through OmniKassa.', array('@amount' => uc_currency_format($order->order_total, FALSE), '@currency' => $order->currency)), 'order');
       uc_order_comment_save($order_id, 0, t('Payment of @amount @currency received through OmniKassa.', array('@amount' => uc_currency_format($order->order_total, FALSE), '@currency' => $order->currency)));
-      uc_order_update_status($order_id, 'payment_received');
-      uc_cart_complete_sale($order);
 
       // This lets us know it's a legitimate access of the complete page.
       $_SESSION['uc_checkout'][$_SESSION['cart_order']]['do_complete'] = TRUE;
