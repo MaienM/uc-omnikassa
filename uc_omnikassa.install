@@ -78,6 +78,20 @@ function uc_omnikassa_schema() {
         'not null' => TRUE,
         'default' => 0,
       ),
+      'status' => array(
+        'description' => 'The status message. If the transaction is refused, this is the reason why.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'accepted' => array(
+        'description' => 'Whether the transaction was accepted by us.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
     ),
     'indexes' => array(
       'order_id' => array('order_id'),
@@ -88,6 +102,36 @@ function uc_omnikassa_schema() {
   );
 
   return $schema;
+}
+
+/**
+ * Added two fields to the table logging the transactions, since we're now logging all of them (even the ones that are refused by us for various reasons).
+ */
+function uc_omnikassa_update_7101() {
+  // Add the new fields.
+  db_add_field('uc_payment_omnikassa', 'status', array(
+    'description' => 'The status message. If the transaction is refused, this is the reason why.',
+    'type' => 'varchar',
+    'length' => 255,
+    'not null' => TRUE,
+    'default' => '',
+  ));
+
+  db_add_field('uc_payment_omnikassa', 'accepted', array(
+    'description' => 'Whether the transaction was accepted by us.',
+    'type' => 'int',
+    'size' => 'tiny',
+    'not null' => TRUE,
+    'default' => 0,
+  ));
+
+  // All existing entries are valid ones, so update them to reflect that.
+  db_update('uc_payment_omnikassa')
+    ->fields(array(
+      'status'   => 'valid response',
+      'accepted' => 1,
+    ))
+    ->execute();
 }
 
 /**

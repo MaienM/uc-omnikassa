@@ -32,8 +32,32 @@ function uc_omnikassa_menu() {
     'type' => MENU_CALLBACK,
     'file' => 'uc_omnikassa.pages.inc',
   );
+  $items['admin/store/orders/%/transactions'] = array(
+    'title' => 'Transactions',
+    'page callback' => 'uc_omnikassa_transactions', 
+    'page arguments' => array(3),
+    'access callback' => TRUE,
+    //'access arguments' => array('edit orders'),
+    'type' => MENU_LOCAL_TASK,
+    'file' => 'uc_omnikassa.pages.inc',
+  );
+  $items['admin/store/orders/%/transactions/%uc_omnikassa_reference'] = array(
+    'title' => 'Transaction Detail',
+    'page callback' => 'uc_omnikassa_transaction_detail',
+    'page arguments' => array(3, 5),
+    'access callback' => TRUE,
+    //'access arguments' => array('edit orders'),
+    'file' => 'uc_omnikassa.pages.inc',
+  );
 
   return $items;
+}
+
+/**
+ * Implements hook_load for uc_omnikassa_reference.
+ */
+function uc_omnikassa_reference_load($reference) {
+  return (object)db_query('SELECT * FROM {uc_payment_omnikassa} WHERE reference = :reference', array(':reference' => $reference))->fetchAssoc();
 }
 
 /**
@@ -43,7 +67,7 @@ function uc_omnikassa_menu() {
  */
 function uc_omnikassa_uc_payment_method() {
   // Build the title string.
-  $title = '<img src="" class="uc-omnikassa-cctype" />';
+  $title = '<img src="' . drupal_get_path('module', 'uc_omnikassa') . '/images/omnikassa.gif" class="uc-omnikassa-cctype" />';
   $title .= ' ' . t('Rabobank OmniKassa');
 
   // Available payment types.
@@ -52,7 +76,7 @@ function uc_omnikassa_uc_payment_method() {
   foreach ($payment_types as $type) {
     $type = strtolower($type);
     $title .= ' ' . theme('image', array(
-      'path' => drupal_get_path('module', "uc_omnikassa") . "/images/$type.gif",
+      'path' => drupal_get_path('module', 'uc_omnikassa') . "/images/$type.gif",
       'attributes' => array('class' => array('uc-omnikassa-cctype', "uc-omnikassa-cctype-$type")),
     ));
   }
@@ -79,26 +103,40 @@ function uc_omnikassa_uc_payment_method() {
 function uc_payment_method_omnikassa($op, &$order) {
   switch ($op) {
     case 'order-view':
-      $node = db_query("SELECT reference, brand, ident FROM {uc_payment_omnikassa} WHERE order_id = :id ORDER BY received DESC", array(':id' => $order->order_id))->fetchAssoc();
+      $node = db_query('SELECT reference, brand, ident FROM {uc_payment_omnikassa} WHERE order_id = :id AND accepted = 1 AND response = 0 ORDER BY received DESC', array(':id' => $order->order_id))->fetchAssoc();
 
-      // The transaction reference and brand default to "Unknown" if... well, unknown.
-      if (empty($node['reference'])) {
-        $node['reference'] = t('Unknown');
+      // If we have no node, there are no payments/they all failed.
+      if (!$node) {
+        $build['#markup'] = t('No succesful payment.');
       }
-      if (empty($node['brand'])) {
-        $node['brand'] = t('Unknown');
+      else {
+
+        // The transaction reference and brand default to "Unknown" if... well, unknown.
+        if (empty($node['reference'])) {
+          $node['reference'] = t('Unknown');
+        }
+        if (empty($node['brand'])) {
+          $node['brand'] = t('Unknown');
+        }
+
+        // Add the brand (iDeal, VISA, etc).
+        $build['#markup'] = t('Paid with @brand', array('@brand' => $node['brand']));
+
+        // If applicable, add the masked account number.
+        if (!empty($node['ident'])) {
+          $build['#markup'] .= '<br />' . t('Account number: @ident', array('@ident' => $node['ident']));
+        }
+
+        // Add the transaction reference.
+        $build['#markup'] .= '<br />' . t('Transaction ID: @reference', array('@reference' => $node['reference']));
       }
 
-      // Add the brand (iDeal, VISA, etc).
-      $build['#markup'] = t('Paid with @brand', array('@brand' => $node['brand']));
-
-      // If applicable, add the masked account number.
-      if (!empty($node['ident'])) {
-        $build['#markup'] .= '<br />' . t('Account number: @ident', array('@ident' => $node['ident']));
+      // Add the "show more" part.
+      $num = db_query('SELECT * FROM {uc_payment_omnikassa} WHERE order_id = :id', array(':id' => $order->order_id))->rowCount();
+      if ($num > (int)(boolean) $node)
+      {
+        $build['#markup'] .= '<br />' . l(t('View all transactions'), 'admin/store/orders/' . $order->order_id . '/transactions');
       }
-
-      // Add the transaction reference.
-      $build['#markup'] .= '<br />' . t('Transaction ID: @reference', array('@reference' => $node['reference']));
 
       return $build;
 
@@ -210,7 +248,7 @@ function uc_omnikassa_form($form, &$form_state, $order) {
     'paymentMeanBrandList' => implode(',', array_filter(variable_get('uc_omnikassa_payment_methods'))),
     'normalReturnUrl'      => $url,
     'automaticResponseUrl' => $url,
-    //'expirationDate'       => date(DateTime::ISO8601, time() + 60 * variable_get('uc_omnikassa_timeout')),
+    'expirationDate'       => date(DateTime::ATOM, time() + 60 * variable_get('uc_omnikassa_timeout')) . 'Z',
     'amount'               => (int)($order->order_total * 100),
     'transactionReference' => sprintf('%06d', $order->order_id) . substr(md5(rand()), 0, 6),
     'orderId'              => $order->order_id,
