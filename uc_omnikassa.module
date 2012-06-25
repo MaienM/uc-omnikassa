@@ -57,7 +57,7 @@ function uc_omnikassa_menu() {
  * Implements hook_load for uc_omnikassa_reference.
  */
 function uc_omnikassa_reference_load($reference) {
-  return (object)db_query('SELECT * FROM {uc_payment_omnikassa} WHERE reference = :reference', array(':reference' => $reference))->fetchAssoc();
+  return db_query('SELECT * FROM {uc_payment_omnikassa} WHERE reference = :reference', array(':reference' => $reference))->fetchObject();
 }
 
 /**

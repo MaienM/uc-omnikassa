@@ -120,6 +120,11 @@ function uc_omnikassa_complete() {
     case '60':
       uc_order_update_status($order_id, 'omnikassa_pending');
       drupal_set_message(t('Your payment is pending.'), 'info');
+      uc_cart_complete_sale($order);
+
+      // This lets us know it's a legitimate access of the complete page.
+      $_SESSION['uc_checkout'][$_SESSION['cart_order']]['do_complete'] = TRUE;
+      drupal_goto('cart/checkout/complete');
       drupal_goto('cart');
       break;
 
@@ -193,7 +198,7 @@ function uc_omnikassa_transactions($order_id) {
     '#theme' => 'table',
     '#header' => $header,
     '#rows' => $rows,
-    '#empty' => t('No transactions have been received for this order.'),
+    '#empty' => t('No OmniKassa transactions have been received for this order.'),
   );
 
   return $build;

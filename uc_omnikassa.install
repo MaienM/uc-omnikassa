@@ -135,6 +135,22 @@ function uc_omnikassa_update_7101() {
 }
 
 /**
+ * All omnikassa payments are now also visible in the payments tab of the order (as they should be). 
+ */
+function uc_omnikassa_update_7102() {
+  // Update all existing payments.
+  foreach (db_query('SELECT * FROM {uc_payment_omnikassa} WHERE response = 0 AND accepted = 1', array(), array('fetch' => PDO::FETCH_OBJ))->fetchAllAssoc('order_id') as $payment) {
+    $payment = (object)$payment;
+    $order = uc_order_load($payment->order_id);
+    if ($order) {
+      uc_payment_enter($payment->order_id, 'omnikassa', $payment->amount / 100, $order->uid, NULL, 
+        l(t('Details'), "admin/store/orders/{$payment->orderId}/transactions/{$payment->transactionReference}"), 
+        $payment->received);
+    }
+  }
+}
+
+/**
  * Implements hook_install().
  */
 function uc_omnikassa_install() {
