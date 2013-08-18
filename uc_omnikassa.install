@@ -144,7 +144,7 @@ function uc_omnikassa_update_7102() {
     $order = uc_order_load($payment->order_id);
     if ($order) {
       uc_payment_enter($payment->order_id, 'omnikassa', $payment->amount / 100, $order->uid, NULL, 
-        l(t('Details'), "admin/store/orders/{$payment->orderId}/transactions/{$payment->transactionReference}"), 
+        l(t('Details'), "admin/store/orders/{$payment->order_id}/transactions/{$payment->reference}"), 
         $payment->received);
     }
   }

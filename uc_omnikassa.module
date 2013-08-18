@@ -259,12 +259,6 @@ function uc_omnikassa_form($form, &$form_state, $order) {
   $form['Seal']             = array('#type' => 'hidden', '#value' => $omniseal);
   $form['InterfaceVersion'] = array('#type' => 'hidden', '#value' => 'HP_1.0');
 
-  foreach ($data as $name => $value) {
-    if (!empty($value)) {
-      $form[$name] = array('#type' => 'hidden', '#value' => $value);
-    }
-  }
-
   $form['actions'] = array('#type' => 'actions');
   $form['actions']['submit'] = array(
     '#type' => 'submit',

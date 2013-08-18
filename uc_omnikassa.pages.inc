@@ -76,12 +76,17 @@ function uc_omnikassa_complete() {
   ), WATCHDOG_INFO, _link($data));
 
   // Check whether the order id matches the current session.
-  $order_id = $_SESSION['cart_order'];
+  // Disabled. All this means is that the order timed out locally while paying. 
+  // So, they MIGHT be paying for an order they didn't place. Big deal, let 
+  // them. Besides, since the seal is intact tampering isn't possible either 
+  // way.
+  /*$order_id = $_SESSION['cart_order'];
   if (!isset($_SESSION['cart_order']) || $order_id != $data['orderId']) {
     return error($data, 'order id that does not match the session.');
-  }
+  }*/
 
   // Load the order info.
+  $order_id = $data['orderId'];
   $order = uc_order_load($order_id);
   if (!$order) {
     return error($data, 'non-existant order.');
